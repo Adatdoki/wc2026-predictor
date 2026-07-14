@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WC2026 Predikció · WCUI 0.9.0</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1116; --panel:#161b23; --panel2:#1c232e; --line:#252d3a;
+  --text:#e8ecf3; --dim:#8b95a7; --accent:#4f7cff;
+  --green:#22c55e; --red:#ef4444; --yellow:#eab308;
+  --r-sm:9px; --r-lg:15px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.mono{font-family:'DM Mono',monospace}
+
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header h1{font-size:17px;font-weight:700}
+header h1 span{color:var(--accent)}
+.build{font-family:'DM Mono',monospace;font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:var(--r-sm);padding:2px 8px}
+.stats{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.chip{font-size:12px;padding:4px 10px;border-radius:var(--r-sm);background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+.chip b{color:var(--text);font-family:'DM Mono',monospace}
+.chip.acc b{color:var(--green)}
+
+main{display:flex;flex:1;min-height:0}
+
+/* ── Idővonal ── */
+#timeline{width:330px;min-width:270px;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel)}
+.roundhead{position:sticky;top:0;z-index:2;background:var(--panel);padding:9px 14px 5px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;border-bottom:1px solid var(--line)}
+.mrow{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:1px solid rgba(37,45,58,.4);transition:background .12s}
+.mrow:hover{background:var(--panel2)}
+.mrow.sel{background:var(--panel2);box-shadow:inset 3px 0 0 var(--accent)}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--dim)}
+.dot.future{background:transparent;border:2px solid var(--dim)}
+.dot.correct{background:var(--green)} .dot.wrong{background:var(--red)} .dot.close{background:var(--yellow)}
+.mrow .teams{flex:1;font-size:13px;line-height:1.25}
+.mrow .date{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--dim)}
+
+/* ── Részletpanel ── */
+#detail{flex:1;overflow-y:auto;padding:22px 26px}
+.placeholder{color:var(--dim);margin-top:60px;text-align:center;font-size:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px 22px;max-width:760px;margin:0 auto 16px;transition:border-color .3s, box-shadow .3s}
+.card.v-correct{border-color:var(--green);box-shadow:0 0 0 1px var(--green),0 0 26px rgba(34,197,94,.22)}
+.card.v-wrong{border-color:var(--red);box-shadow:0 0 0 1px var(--red),0 0 26px rgba(239,68,68,.22)}
+.card.v-close{border-color:var(--yellow);box-shadow:0 0 0 1px var(--yellow),0 0 26px rgba(234,179,8,.20)}
+.roundtag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.matchtitle{font-size:22px;font-weight:700;margin:6px 0 2px}
+.meta{font-family:'DM Mono',monospace;font-size:11.5px;color:var(--dim);margin-bottom:16px}
+
+.bars{display:flex;flex-direction:column;gap:9px;margin:14px 0}
+.barline{display:flex;align-items:center;gap:10px}
+.barline .lbl{width:150px;font-size:13px;text-align:right;flex-shrink:0}
+.barline .track{flex:1;height:20px;background:var(--panel2);border-radius:var(--r-sm);overflow:hidden;position:relative}
+.barline .fill{height:100%;background:var(--accent);border-radius:var(--r-sm);width:0;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.barline.fav .fill{background:linear-gradient(90deg,var(--accent),#7ea0ff)}
+.barline .pct{width:58px;font-family:'DM Mono',monospace;font-size:13px}
+.barline.draw .fill{background:#5b6577}
+
+.predbadge{display:inline-block;margin-top:6px;font-size:12.5px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 11px;color:var(--dim)}
+.predbadge b{color:var(--text)}
+
+button.reveal{margin-top:16px;background:var(--accent);border:none;color:#fff;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;padding:10px 22px;border-radius:var(--r-sm);cursor:pointer;transition:transform .1s, filter .15s}
+button.reveal:hover{filter:brightness(1.12)}
+button.reveal:active{transform:scale(.97)}
+button.reveal:disabled{background:var(--panel2);color:var(--dim);cursor:default}
+
+.verdict{margin-top:16px;padding:14px 16px;border-radius:var(--r-sm);font-size:14px;display:none;animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.verdict.correct{display:block;background:rgba(34,197,94,.12);border:1px solid var(--green)}
+.verdict.wrong{display:block;background:rgba(239,68,68,.12);border:1px solid var(--red)}
+.verdict.close{display:block;background:rgba(234,179,8,.12);border:1px solid var(--yellow)}
+.verdict .big{font-size:17px;font-weight:700;margin-bottom:4px}
+.verdict.correct .big{color:var(--green)} .verdict.wrong .big{color:var(--red)} .verdict.close .big{color:var(--yellow)}
+.verdict .mono{color:var(--dim);font-size:11.5px;margin-top:6px}
+
+.chain{margin:12px 0;border-left:2px solid var(--line);padding-left:14px;display:flex;flex-direction:column;gap:7px}
+.chain .step{font-size:12.5px;color:var(--dim)}
+.chain .step b{color:var(--text)}
+.chain .step .tag{font-family:'DM Mono',monospace;font-size:10px;border:1px solid var(--line);border-radius:var(--r-sm);padding:1px 6px;margin-right:6px}
+.chain .step .tag.real{color:var(--green);border-color:var(--green)}
+.chain .step .tag.pred{color:var(--accent);border-color:var(--accent)}
+
+h3.sub{font-size:13px;color:var(--dim);font-weight:500;text-transform:uppercase;letter-spacing:.07em;margin:4px 0 10px}
+.top5 .barline .lbl{width:130px}
+.top5 .fill{background:#334155}
+.top5 .barline:first-child .fill{background:var(--accent)}
+
+footer{padding:6px 20px;border-top:1px solid var(--line);background:var(--panel);font-size:11px;color:var(--dim);display:flex;justify-content:space-between}
+footer a{color:var(--accent);text-decoration:none}
+.heart{display:inline-block;animation:beat 1.6s infinite;color:#ff5e7a}
+@keyframes beat{0%,100%{transform:scale(1)}12%{transform:scale(1.25)}24%{transform:scale(1)}}
+
+/* ── Fejléc extrák ── */
+.viewtabs{display:flex;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-sm);padding:3px}
+.vtab{background:transparent;border:none;color:var(--dim);font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:calc(var(--r-sm) - 3px);cursor:pointer}
+.vtab.sel{background:var(--accent);color:#fff;font-weight:700}
+button.sweep{background:transparent;border:1px solid var(--accent);color:var(--accent);font-family:'DM Sans',sans-serif;font-weight:700;font-size:12.5px;padding:6px 13px;border-radius:var(--r-sm);cursor:pointer;transition:background .15s}
+button.sweep:hover{background:rgba(79,124,255,.14)}
+button.sweep:disabled{opacity:.5;cursor:default}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+.legend i.dot{display:inline-block;margin-right:4px;vertical-align:-1px}
+
+/* ── Validációs összegző ── */
+table.sumtbl{border-collapse:collapse;width:100%;margin-top:10px;font-size:13px}
+.sumtbl th,.sumtbl td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line)}
+.sumtbl th{color:var(--dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.sumtbl td:first-child,.sumtbl th:first-child{text-align:left}
+.sumtbl .mono{font-family:'DM Mono',monospace}
+.sumtbl .g{color:var(--green)} .sumtbl .y{color:var(--yellow)} .sumtbl .r{color:var(--red)}
+.bigacc{font-size:34px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green)}
+
+/* ── Grafikon nézet ── */
+#chartview{flex:1;overflow-y:auto;padding:18px 24px;display:none}
+.chartcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;max-width:1100px;margin:0 auto}
+#tlsvg{width:100%;height:auto;display:block}
+.tl-line{fill:none;stroke-width:2}
+.tl-line.dimmed{opacity:.14}
+.tl-grid{stroke:var(--line);stroke-width:1}
+.tl-roundlbl{fill:var(--dim);font-size:10px;font-family:'DM Mono',monospace}
+.tl-ylbl{fill:var(--dim);font-size:10px;font-family:'DM Mono',monospace}
+.tl-cursor{stroke:#e8ecf3;stroke-width:1.5;stroke-dasharray:4 3}
+#tlslider{width:100%;margin:14px 0 6px;accent-color:var(--accent)}
+.tlmoment{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:8px}
+.tlmoment .info{font-family:'DM Mono',monospace;font-size:12px;color:var(--dim);min-width:220px}
+.tlmoment .info b{color:var(--text)}
+.tltop5{flex:1;min-width:280px;display:flex;flex-direction:column;gap:6px}
+.tlrow{display:flex;align-items:center;gap:8px;font-size:13px}
+.tlrow .sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.tlrow .nm{width:110px}
+.tlrow .track{flex:1;height:14px;background:var(--panel2);border-radius:var(--r-sm);overflow:hidden}
+.tlrow .fill{height:100%;border-radius:var(--r-sm)}
+.tlrow .pc{width:52px;font-family:'DM Mono',monospace;font-size:12px;text-align:right}
+.chartlegend{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.chartlegend span{font-size:11.5px;color:var(--dim);cursor:pointer;display:flex;align-items:center;gap:5px;padding:2px 7px;border-radius:var(--r-sm);border:1px solid transparent}
+.chartlegend span.off{opacity:.35}
+.chartlegend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.progresswrap{margin:30px auto;max-width:420px;text-align:center;color:var(--dim);font-size:13px}
+.progressbar{height:8px;background:var(--panel2);border-radius:var(--r-sm);overflow:hidden;margin-top:10px}
+.progressbar .p{height:100%;background:var(--accent);width:0;transition:width .4s}
+
+/* ── Elemzés nézet ── */
+#analysisview{flex:1;overflow-y:auto;padding:18px 24px;display:none}
+.anacard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;max-width:1000px;margin:0 auto 16px}
+.ananote{font-size:12px;color:var(--dim);font-style:italic;margin-top:10px;line-height:1.5}
+.sc-dot{stroke:var(--bg);stroke-width:1}
+.sc-lbl{font-size:10px;font-family:'DM Mono',monospace;fill:var(--text)}
+.sc-diag{stroke:var(--dim);stroke-width:1;stroke-dasharray:3 4;opacity:.5}
+.sc-axis{fill:var(--dim);font-size:10px;font-family:'DM Mono',monospace}
+.sclegend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--dim)}
+.sclegend i{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:-1px}
+.corrline{display:flex;align-items:center;gap:10px;margin:7px 0}
+.corrline .cl{width:130px;font-size:13px;text-align:right}
+.corrline .track{flex:1;height:16px;background:var(--panel2);border-radius:var(--r-sm);overflow:hidden}
+.corrline .fill{height:100%;background:var(--accent);border-radius:var(--r-sm)}
+.corrline .cv{width:56px;font-family:'DM Mono',monospace;font-size:12.5px}
+.verdictbox{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;margin:12px 0;font-size:13.5px;line-height:1.55}
+.verdictbox b.acc{color:var(--accent)}
+.tiltchip{font-family:'DM Mono',monospace;font-size:10.5px;padding:2px 7px;border-radius:var(--r-sm);border:1px solid var(--line)}
+.tiltchip.star{color:#f97316;border-color:#f97316}
+.tiltchip.coll{color:#14b8a6;border-color:#14b8a6}
+.tiltchip.bal{color:var(--dim)}
+
+/* ── Csapat-bontás kártyák ── */
+.bdgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px;margin:0 auto 16px}
+@media(max-width:900px){.bdgrid{grid-template-columns:1fr}}
+.bdcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px}
+.bdhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.bdhead .tname{font-size:17px;font-weight:700}
+.bdhead .eff{font-family:'DM Mono',monospace;font-size:13px;color:var(--dim)}
+.bdhead .eff b{color:var(--accent);font-size:19px}
+.bdcomp{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}
+.bdcomp .cl{width:132px;color:var(--dim)}
+.bdcomp .track{flex:1;height:11px;background:var(--panel2);border-radius:var(--r-sm);overflow:hidden}
+.bdcomp .fill{height:100%;background:var(--accent);opacity:.75;border-radius:var(--r-sm)}
+.bdcomp .cv{width:72px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:var(--dim)}
+.bdcomp .cv b{color:var(--text)}
+.mchips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.mchip{font-family:'DM Mono',monospace;font-size:10.5px;padding:3px 8px;border-radius:var(--r-sm);background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+.mchip b{font-size:11.5px}
+.mchip.up b{color:var(--green)} .mchip.down b{color:var(--red)} .mchip.neut b{color:var(--dim)}
+.mchip.asof{border-color:var(--accent)}
+.bdrow{font-size:12px;color:var(--dim);margin:7px 0;line-height:1.5}
+.bdrow b{color:var(--text)}
+.bdmath{font-family:'DM Mono',monospace;font-size:11px;color:var(--dim);border-top:1px solid var(--line);margin-top:10px;padding-top:9px}
+.bdmath b{color:var(--accent)}
+.bdnote{max-width:760px;margin:-6px auto 14px;font-size:12px;color:var(--dim);text-align:center}
+@media(max-width:760px){#timeline{width:200px;min-width:170px}.barline .lbl{width:90px;font-size:11.5px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏆 WC2026 <span>Predikció</span></h1>
+  <span class="build" id="build">…</span>
+  <div class="viewtabs">
+    <button class="vtab sel" id="tabMatches" onclick="showView('matches')">Meccsek</button>
+    <button class="vtab" id="tabChart" onclick="showView('chart')">📈 Top5 idővonal</button>
+    <button class="vtab" id="tabAna" onclick="showView('analysis')">🔬 Elemzés</button>
+  </div>
+  <button class="sweep" id="sweepBtn" onclick="runValidateAll()">▶ Teljes validáció</button>
+  <button class="sweep" id="calibBtn" onclick="runCalibration()">⚖ Kalibráció</button>
+  <button class="sweep" id="refreshBtn" onclick="refreshData()">🔄 Eredmény-frissítés</button>
+  <div class="viewtabs" id="engineToggle">
+    <button class="vtab sel" id="engElo" onclick="setEngine('elo')" title="ELO-szerű valószínűség (alapértelmezett)">ELO</button>
+    <button class="vtab" id="engPoi" onclick="setEngine('poisson')" title="Poisson-gólmodell: pontos eredményt is jósol">Poisson</button>
+  </div>
+  <div class="viewtabs" id="modeToggle" style="display:none">
+    <button class="vtab sel" id="modeDef" onclick="setMode('default')">Eredeti súlyok</button>
+    <button class="vtab" id="modeCal" onclick="setMode('calibrated')">Kalibrált</button>
+  </div>
+  <div class="legend">
+    <span><i class="dot correct"></i>talált</span>
+    <span><i class="dot close"></i>nem talált, de szoros volt (favorit &lt;40% csop. / &lt;45% kieséses)</span>
+    <span><i class="dot wrong"></i>tévedett</span>
+  </div>
+  <div class="stats">
+    <span class="chip">Ellenőrzött: <b id="stChecked">0</b></span>
+    <span class="chip acc" id="chipBss" title="Brier Skill Score = 1 − Brier_modell / Brier_naiv_szabály. Ez a lényegi mérőszám: mennyivel jobb a modell a &quot;mindig a magasabb FIFA-pontszámú nyer&quot; szabálynál. 0 = ugyanolyan, +1 = tökéletes, negatív = rosszabb.">Skill (BSS): <b id="stBss">–</b></span>
+    <span class="chip">Brier: <b id="stBrier">–</b></span>
+    <span class="chip" title="A találati arány FÉLREVEZETŐ mérőszám — a naiv szabály 72%-ot ér. Lásd a bázisvonal-táblázatot.">Találat: <b id="stAcc">–</b></span>
+  </div>
+</header>
+<main>
+  <nav id="timeline"></nav>
+  <section id="detail"><div class="placeholder">← Válassz egy meccset az idővonalról.<br><br>A predikció mindig csak az adott meccs <b>előtti</b> eredményekből számol.</div></section>
+  <section id="chartview"></section>
+  <section id="analysisview"></section>
+</main>
+<footer>
+  <span>TZlab · WC2026 predikciós rendszer</span>
+  <span><a href="https://repulesradar.netlify.app/erdi_repuloter_emlekmu.html" target="_blank" rel="noopener"><span class="heart">❤</span> Ha tetszett, nézd meg, milyen jó ügyet támogathatsz te is</a></span>
+</footer>
+
+<script>
+const KV_BUILD = "WCUI 0.9.0";
+console.log("KV_BUILD:", KV_BUILD);
+
+let MATCHES = [], SELECTED = null, TL = null, TLVIS = {};
+const PALETTE = ['#4f7cff','#22c55e','#eab308','#ef4444','#a855f7','#14b8a6',
+                 '#f97316','#ec4899','#84cc16','#38bdf8','#f43f5e','#8b8fa3'];
+
+function showView(v){
+  document.getElementById('tabMatches').classList.toggle('sel', v==='matches');
+  document.getElementById('tabChart').classList.toggle('sel', v==='chart');
+  document.getElementById('tabAna').classList.toggle('sel', v==='analysis');
+  document.getElementById('timeline').style.display = v==='matches' ? '' : 'none';
+  document.getElementById('detail').style.display = v==='matches' ? '' : 'none';
+  document.getElementById('chartview').style.display = v==='chart' ? 'block' : 'none';
+  document.getElementById('analysisview').style.display = v==='analysis' ? 'block' : 'none';
+  if(v==='chart') loadChart();
+  if(v==='analysis') loadAnalysis();
+}
+
+/* ── Elemzés nézet ── */
+let ANA = null;
+const RANKCOLOR = {0:'#5b6577',1:'#38bdf8',2:'#14b8a6',3:'#eab308',4:'#22c55e',5:'#4f7cff'};
+
+async function loadAnalysis(){
+  const cv = document.getElementById('analysisview');
+  if(ANA){ return; }
+  cv.innerHTML = '<div class="placeholder">Elemzés számítása…</div>';
+  const r = await fetch('/api/analysis'); ANA = await r.json();
+  renderAnalysis();
+}
+
+function tiltChip(lbl){
+  const cls = lbl==='sztár-dőlés'?'star':(lbl==='kollektív-dőlés'?'coll':'bal');
+  return '<span class="tiltchip '+cls+'">'+esc(lbl)+'</span>';
+}
+
+function renderAnalysis(){
+  const a = ANA, cv = document.getElementById('analysisview');
+  let h = '';
+
+  /* 1. Szórásdiagram */
+  const W=940,H=430,L=52,R=16,T=16,B=44;
+  const xs=a.scatter.map(s=>s.star), ys=a.scatter.map(s=>s.depth);
+  const mn=Math.min(...xs,...ys)-4, mx=Math.max(...xs,...ys)+4;
+  const X=v=>L+(v-mn)/(mx-mn)*(W-L-R), Y=v=>T+(1-(v-mn)/(mx-mn))*(H-T-B);
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">';
+  svg+='<line class="sc-diag" x1="'+X(mn)+'" y1="'+Y(mn)+'" x2="'+X(mx)+'" y2="'+Y(mx)+'"/>';
+  for(const v of [30,40,50,60,70,80,90]){
+    if(v<mn||v>mx) continue;
+    svg+='<text class="sc-axis" x="'+X(v)+'" y="'+(H-B+16)+'" text-anchor="middle">'+v+'</text>';
+    svg+='<text class="sc-axis" x="'+(L-8)+'" y="'+(Y(v)+3)+'" text-anchor="end">'+v+'</text>';
+  }
+  svg+='<text class="sc-axis" x="'+(W/2)+'" y="'+(H-6)+'" text-anchor="middle">Sztárjátékos-minőség →</text>';
+  svg+='<text class="sc-axis" transform="rotate(-90 14 '+(H/2)+')" x="14" y="'+(H/2)+'" text-anchor="middle">Keretmélység →</text>';
+  const labeled = new Set(a.scatter.filter(s=>s.rank>=4 || Math.abs(s.star-s.depth)>=6).map(s=>s.team));
+  for(const s of a.scatter){
+    svg+='<circle class="sc-dot" cx="'+X(s.star)+'" cy="'+Y(s.depth)+'" r="'+(s.rank>=4?7:5)+'" fill="'+RANKCOLOR[s.rank]+'"><title>'+esc(s.team)+' — sztár '+s.star+', mélység '+s.depth+', elért: '+esc(s.rank_label)+'</title></circle>';
+    if(labeled.has(s.team)) svg+='<text class="sc-lbl" x="'+(X(s.star)+8)+'" y="'+(Y(s.depth)-6)+'">'+esc(s.team)+'</text>';
+  }
+  svg+='</svg>';
+  h+='<div class="anacard"><h3 class="sub">Sztár vs. keretmélység — pontszín: meddig jutott a valóságban</h3>'+svg;
+  h+='<div class="sclegend"><span><i style="background:#5b6577"></i>Csoportkör</span><span><i style="background:#38bdf8"></i>R32</span><span><i style="background:#14b8a6"></i>R16</span><span><i style="background:#eab308"></i>Negyeddöntő</span><span><i style="background:#22c55e"></i>Elődöntős</span></div>';
+  h+='<div class="ananote">A pontok az átlón sorakoznak: az adatbázisban a sztár- és mélység-pontszám szinte együtt mozog. A tanulságos kivételek az átlótól távoli pontok: Norway (Haaland-effektus, +17 sztár-túlsúly) és Switzerland (−7, kollektíva) — mindkettő negyeddöntőig jutott.</div></div>';
+
+  /* 2. Verdikt + dőlés-elemzés */
+  const ta = a.tilt_analysis;
+  const top2 = ta.overperformers.slice(0,2);
+  h+='<div class="anacard"><h3 class="sub">Sztár-dőlés vs. kollektíva — azonos FIFA-szinthez mért túlteljesítés</h3>';
+  h+='<div class="verdictbox">Dőlés ↔ túlteljesítés rangkorreláció: <b class="acc">ρ = '+ta.rho_tilt_overperf.toFixed(3)+'</b> — gyakorlatilag nincs összefüggés. A két legnagyobb túlteljesítő ráadásul <b>egy-egy iskola képviselője</b>: '+top2.map(r=>'<b>'+esc(r.team)+'</b> ('+esc(r.tilt_label)+')').join(' és ')+'. Ezen a tornán <b class="acc">egyik filozófia sem bizonyult önmagában nyerőnek</b> — a négy elődöntős mind magas sztár- ÉS mélység-pontszámú.</div>';
+  h+='<table class="sumtbl"><tr><th>Túlteljesítők</th><th>Profil</th><th>Túlt.</th><th>Elért</th></tr>';
+  for(const r of ta.overperformers) h+='<tr><td>'+esc(r.team)+'</td><td>'+tiltChip(r.tilt_label)+' <span class="mono" style="color:var(--dim)">'+(r.tilt>=0?'+':'')+r.tilt+'</span></td><td class="mono g">+'+r.overperf.toFixed(2)+'</td><td>'+esc(r.achieved)+'</td></tr>';
+  h+='<tr><th>Alulteljesítők</th><th></th><th></th><th></th></tr>';
+  for(const r of ta.underperformers) h+='<tr><td>'+esc(r.team)+'</td><td>'+tiltChip(r.tilt_label)+' <span class="mono" style="color:var(--dim)">'+(r.tilt>=0?'+':'')+r.tilt+'</span></td><td class="mono r">'+r.overperf.toFixed(2)+'</td><td>'+esc(r.achieved)+'</td></tr>';
+  h+='</table><div class="ananote">'+esc(ta.collinearity_note)+'</div></div>';
+
+  /* 3. Archetípusok */
+  h+='<div class="anacard"><h3 class="sub">Archetípusok (felső harmad küszöb: sztár ≥ '+a.thresholds.star+', mélység ≥ '+a.thresholds.depth+')</h3>';
+  h+='<table class="sumtbl"><tr><th>Archetípus</th><th>Csapat</th><th>Átlag elért kör</th><th>R16+ arány</th><th>Legjobb</th></tr>';
+  for(const r of a.archetypes) h+='<tr><td>'+esc(r.archetype)+'</td><td class="mono">'+r.n+'</td><td>'+r.avg_rank.toFixed(2)+' ('+esc(r.avg_rank_label)+')</td><td class="mono">'+r.r16_plus_pct+'% <span style="color:var(--dim);font-size:10.5px">±'+r.r16_plus_se+'</span></td><td>'+esc(r.best)+'</td></tr>';
+  h+='</table><div class="ananote">A ± érték a 95%-os hibahatár. A "Sztárcentrikus" sor mindössze 3 csapatból áll — a ±53%-os hibahatár azt jelenti, hogy abból a sorból <b>semmilyen következtetés nem vonható le</b>. A "Kollektíva" sor (magas mélység sztár nélkül) üres — ilyen csapat ebben az adatbázisban nem létezik, ami önmagában is tanulság: a felső szintű keretmélység a gyakorlatban együtt jár a sztárminőséggel.</div></div>';
+
+  /* 4. Korrelációk */
+  h+='<div class="anacard"><h3 class="sub">Melyik tényező jelezte előre az elért kört? (Spearman ρ)</h3>';
+  for(const c of a.correlations){
+    h+='<div class="corrline"><span class="cl">'+esc(c.factor)+'</span><span class="track"><span class="fill" style="width:'+(Math.abs(c.rho)*100)+'%"></span></span>'
+      +'<span class="cv">'+c.rho.toFixed(3)+'</span>'
+      +'<span class="mono" style="width:100px;font-size:10.5px;color:var(--dim)">[' +c.ci[0].toFixed(2)+', '+c.ci[1].toFixed(2)+']</span></div>';
+  }
+  h+='<div class="ananote" style="margin-top:4px">Szögletes zárójelben a 95%-os bootstrap konfidencia-intervallum. A négy intervallum teljesen átfed — <b>a tényezők sorrendje statisztikailag nem megkülönböztethető</b>.</div>';
+  h+='<div class="ananote">Mind a négy tényező ρ≈0.82–0.84 — mivel az adatbázisban együtt mozognak, önálló hatásuk innen nem szétválasztható. A konfliktus-meccs próba (ahol sztár-előny mélység-előnnyel ütközött volna) 0 meccset talált — a kérdés eldöntéséhez játékos-szintű, független forrásból származó adat kellene.</div></div>';
+
+  h+='<div class="ananote" style="text-align:center;max-width:1000px;margin:0 auto">'+esc(a.note)+'</div>';
+  cv.innerHTML = h;
+}
+
+/* ── Teljes validáció (sweep) ── */
+async function runValidateAll(){
+  const btn = document.getElementById('sweepBtn');
+  btn.disabled = true; btn.textContent = '⏳ Számítás…';
+  const r = await fetch('/api/validate-all'); const d = await r.json();
+  btn.textContent = '▶ Pörgetés…';
+  showView('matches');
+  // sweep: pöttyök sorban színeződnek, az idővonal görgetve követi
+  let i = 0;
+  const nav = document.getElementById('timeline');
+  function step(){
+    if(i >= d.items.length){ finishSweep(d, btn); return; }
+    const it = d.items[i];
+    const row = document.getElementById('row_'+it.match_id);
+    if(row){
+      const dot = row.querySelector('.dot');
+      dot.className = 'dot ' + it.verdict;
+      const top = row.offsetTop - nav.clientHeight/2;
+      nav.scrollTo({top: Math.max(0, top)});
+      const mm = MATCHES.find(x=>x.match_id===it.match_id);
+      if(mm) mm.verdict = it.verdict;
+    }
+    i++;
+    setTimeout(step, 26);
+  }
+  step();
+}
+
+function finishSweep(d, btn){
+  btn.disabled = false; btn.textContent = '▶ Teljes validáció';
+  setStats(d.stats);
+  const g = d.items.filter(x=>x.verdict==='correct').length;
+  const y = d.items.filter(x=>x.verdict==='close').length;
+  const rr = d.items.filter(x=>x.verdict==='wrong').length;
+  let h = '<div class="card"><div class="roundtag">Teljes validáció — mind a '+d.items.length+' lejátszott meccs</div>';
+  h += '<div style="display:flex;gap:26px;align-items:baseline;margin:12px 0 4px;flex-wrap:wrap">';
+  h += '<span class="bigacc">'+d.stats.accuracy+'%</span>';
+  h += '<span style="color:var(--green)">● talált: <b class="mono">'+g+'</b></span>';
+  h += '<span style="color:var(--yellow)">● szoros: <b class="mono">'+y+'</b></span>';
+  h += '<span style="color:var(--red)">● tévedett: <b class="mono">'+rr+'</b></span>';
+  h += '<span style="color:var(--dim)">átlag Brier: <b class="mono">'+d.stats.avg_brier.toFixed(3)+'</b></span></div>';
+  h += '<table class="sumtbl"><tr><th>Szakasz</th><th>Meccs</th><th>Talált</th><th>Szoros</th><th>Tévedett</th><th>Találat%</th><th>Brier</th></tr>';
+  for(const b of d.by_round){
+    h += '<tr><td>'+esc(b.round)+'</td><td class="mono">'+b.n+'</td><td class="mono g">'+b.correct
+      +'</td><td class="mono y">'+b.close+'</td><td class="mono r">'+b.wrong
+      +'</td><td class="mono">'+b.accuracy+'%</td><td class="mono">'+b.avg_brier.toFixed(3)+'</td></tr>';
+  }
+  h += '</table>';
+
+  /* Megbízhatósági görbe: amikor a modell X%-ot mondott, tényleg X%-ban jött-e be */
+  const buckets = [[35,50],[50,60],[60,70],[70,80],[80,90],[90,101]];
+  h += '<h3 class="sub" style="margin-top:16px">Megbízhatóság — a kimondott esély vs. a tényleges beválás</h3>';
+  for(const [lo,hi] of buckets){
+    const inB = d.items.filter(x=>x.favorite_prob>=lo && x.favorite_prob<hi);
+    if(!inB.length) continue;
+    const hit = inB.filter(x=>x.verdict==='correct').length/inB.length*100;
+    const mid = (lo+Math.min(hi,100))/2;
+    const ok = Math.abs(hit-mid)<=12;
+    h += '<div class="corrline"><span class="cl mono">'+lo+'–'+Math.min(hi,100)+'% ('+inB.length+' db)</span>'
+      +'<span class="track"><span class="fill" style="width:'+hit+'%;background:'+(ok?'var(--green)':'var(--yellow)')+'"></span></span>'
+      +'<span class="cv">'+hit.toFixed(0)+'%</span></div>';
+  }
+  h += '<div class="ananote">Jól kalibrált modellnél a sáv nagyjából a kimondott tartományba esik (zöld). Sárga = a modell ott elbizakodott vagy túl óvatos.</div>';
+  h += '<div class="predbadge" style="margin-top:10px">A sárga verdikt a statisztikában "nem talált"-nak számít — csak jelzi, hogy nem volt egyértelmű favorit.</div>';
+  h += '</div>';
+  h += '<div class="card" id="baselinecard"><div class="roundtag">Bázisvonal — mihez képest?</div><div class="placeholder" style="margin:16px 0">Naiv szabályok futtatása…</div></div>';
+  document.getElementById('detail').innerHTML = h;
+  document.getElementById('detail').scrollTop = 0;
+  loadBaselines();
+}
+
+async function loadBaselines(){
+  const r = await fetch('/api/baselines'); const d = await r.json();
+  const card = document.getElementById('baselinecard');
+  if(!card) return;
+  let h = '<div class="roundtag">Bázisvonal — mihez képest jó a modell?</div>';
+  h += '<table class="sumtbl" style="margin-top:12px"><tr><th>Módszer</th><th>Találat</th><th>Brier</th><th>Skill (BSS)</th><th></th></tr>';
+  for(const row of d.rows){
+    const me = row.is_model;
+    const bss = row.bss;
+    h += '<tr'+(me?' style="background:rgba(79,124,255,.10)"':'')+'>'
+      + '<td>'+(me?'<b>':'')+esc(row.name)+(me?'</b>':'')+'</td>'
+      + '<td class="mono">'+row.accuracy.toFixed(1)+'%</td>'
+      + '<td class="mono">'+row.brier.toFixed(3)+'</td>'
+      + '<td class="mono '+(bss>0?'g':(bss<0?'r':''))+'">'+(bss>0?'+':'')+bss.toFixed(3)+'</td>'
+      + '<td style="color:var(--dim);font-size:11px;text-align:left">'+esc(row.note)+'</td></tr>';
+  }
+  h += '</table>';
+  h += '<div class="verdictbox" style="margin-top:14px">'+esc(d.verdict)+'</div>';
+  h += '<div class="ananote">A <b>Skill (BSS)</b> a referencia-Brierhez ('+d.reference_brier.toFixed(3)+', a naiv FIFA-szabály) viszonyít: 0 = ugyanolyan jó, +1 = tökéletes, negatív = rosszabb. Ez a projekt saját tanulságának beépítése: <b>nem a találati arány a jó mérőszám</b>.</div>';
+  if(d.market_note) h += '<div class="ananote" style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px">'+esc(d.market_note)+'</div>';
+  card.innerHTML = h;
+}
+
+/* ── Top5 idővonal-grafikon ── */
+async function loadChart(){
+  const cv = document.getElementById('chartview');
+  if(TL){ renderChart(); return; }
+  cv.innerHTML = '<div class="progresswrap">Idővonal számítása — minden meccs-időponthoz torna-szimuláció…<div class="progressbar"><div class="p" id="tlprog"></div></div><div id="tlprogtxt" style="margin-top:6px"></div></div>';
+  async function poll(){
+    const r = await fetch('/api/top5-timeline'); const d = await r.json();
+    if(d.status === "done"){ TL = d; initChart(); return; }
+    if(d.status === 'error'){ cv.innerHTML = '<div class="placeholder">Hiba: '+esc(d.error)+'</div>'; return; }
+    const pct = d.total ? d.progress/d.total*100 : 0;
+    const p = document.getElementById('tlprog'); if(p) p.style.width = pct+'%';
+    const t = document.getElementById('tlprogtxt'); if(t) t.textContent = d.progress+' / '+d.total;
+    setTimeout(poll, 700);
+  }
+  poll();
+}
+
+function initChart(){
+  TLVIS = {}; TL.charted_teams.forEach(t=>TLVIS[t]=true);
+  renderChart();
+}
+
+function teamColor(t){ return PALETTE[TL.charted_teams.indexOf(t) % PALETTE.length]; }
+
+function renderChart(){
+  const cv = document.getElementById('chartview');
+  const pts = TL.points, N = pts.length;
+  const W = 1040, H = 380, L = 44, R = 12, T = 14, B = 34;
+  const x = i => L + i/(N-1)*(W-L-R);
+  const y = v => T + (1 - v/100)*(H-T-B);
+
+  let svg = '<svg id="tlsvg" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  for(const v of [0,25,50,75,100]){
+    svg += '<line class="tl-grid" x1="'+L+'" y1="'+y(v)+'" x2="'+(W-R)+'" y2="'+y(v)+'"/>';
+    svg += '<text class="tl-ylbl" x="'+(L-6)+'" y="'+(y(v)+3)+'" text-anchor="end">'+v+'%</text>';
+  }
+  // forduló-határok
+  let lastRound = null;
+  for(let i=0;i<N;i++){
+    if(pts[i].round !== lastRound){
+      lastRound = pts[i].round;
+      svg += '<line class="tl-grid" x1="'+x(i)+'" y1="'+T+'" x2="'+x(i)+'" y2="'+(H-B)+'" stroke-dasharray="2 4"/>';
+      const lbl = {'1':'Csop.1','2':'Csop.2','3':'Csop.3','R32':'R32','R16':'R16','QF':'ND','SF':'ED','FINAL':'Döntő','most':'ma'}[lastRound]||lastRound;
+      svg += '<text class="tl-roundlbl" x="'+(x(i)+3)+'" y="'+(H-B+14)+'">'+lbl+'</text>';
+    }
+  }
+  for(const team of TL.charted_teams){
+    if(!TLVIS[team]) continue;
+    let dstr = '';
+    for(let i=0;i<N;i++){
+      const v = pts[i].probs[team] ?? 0;
+      dstr += (i? 'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1);
+    }
+    svg += '<path class="tl-line" d="'+dstr+'" stroke="'+teamColor(team)+'"/>';
+  }
+  svg += '<line class="tl-cursor" id="tlcursor" x1="'+x(0)+'" y1="'+T+'" x2="'+x(0)+'" y2="'+(H-B)+'"/>';
+  svg += '</svg>';
+
+  let h = '<div class="chartcard"><h3 class="sub">A prediktált győzelmi esélyek alakulása a torna alatt (as-of, közelítő szimuláció)</h3>';
+  h += svg;
+  h += '<input type="range" id="tlslider" min="0" max="'+(N-1)+'" value="'+(N-1)+'">';
+  h += '<div class="tlmoment"><div class="info" id="tlinfo"></div><div class="tltop5" id="tltop5"></div></div>';
+  h += '<div class="chartlegend" id="tllegend">';
+  for(const t of TL.charted_teams){
+    h += '<span data-team="'+esc(t)+'" class="'+(TLVIS[t]?'':'off')+'" onclick="toggleTeam(this)"><i style="background:'+teamColor(t)+'"></i>'+esc(t)+'</span>';
+  }
+  h += '</div></div>';
+  cv.innerHTML = h;
+
+  const slider = document.getElementById('tlslider');
+  slider.addEventListener('input', ()=>updateMoment(parseInt(slider.value), x));
+  updateMoment(N-1, x);
+}
+
+function toggleTeam(el){
+  const t = el.dataset.team;
+  TLVIS[t] = !TLVIS[t];
+  const slider = document.getElementById('tlslider');
+  const v = slider ? parseInt(slider.value) : TL.points.length-1;
+  renderChart();
+  const s2 = document.getElementById('tlslider'); s2.value = v;
+  s2.dispatchEvent(new Event('input'));
+}
+
+function updateMoment(i, xfn){
+  const p = TL.points[i];
+  const cur = document.getElementById('tlcursor');
+  if(cur){ const xx = xfn(i); cur.setAttribute('x1', xx); cur.setAttribute('x2', xx); }
+  document.getElementById('tlinfo').innerHTML =
+    '<b>'+esc(p.date)+'</b> · '+esc(p.label)+' előtt<br>versenyben: <b>'+p.remaining+'</b> csapat'
+    + (p.played ? '' : '<br><span style="color:var(--accent)">jövőbeli pont — láncolt modellállapot</span>');
+  let h = '';
+  for(const t of p.top5){
+    const c = TL.charted_teams.includes(t.team) ? teamColor(t.team) : '#5b6577';
+    h += '<div class="tlrow"><span class="sw" style="background:'+c+'"></span><span class="nm">'+esc(t.team)+'</span>'
+      + '<span class="track"><span class="fill" style="background:'+c+';width:'+Math.max(1.5,t.win_prob)+'%"></span></span>'
+      + '<span class="pc">'+t.win_prob.toFixed(1)+'%</span></div>';
+  }
+  document.getElementById('tltop5').innerHTML = h;
+}
+
+function esc(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML}
+
+function setStats(s){
+  if(!s) return;
+  document.getElementById('stChecked').textContent = s.checked;
+  document.getElementById('stAcc').textContent = s.accuracy==null ? '–' : (s.correct+'/'+s.checked+' ('+s.accuracy+'%)');
+  document.getElementById('stBrier').textContent = s.avg_brier==null ? '–' : s.avg_brier.toFixed(3);
+  const b = document.getElementById('stBss');
+  b.textContent = s.bss==null ? '–' : (s.bss>0?'+':'')+s.bss.toFixed(3);
+  b.style.color = s.bss==null ? '' : (s.bss>0 ? 'var(--green)' : 'var(--red)');
+}
+
+async function loadMatches(){
+  const r = await fetch('/api/matches'); const d = await r.json();
+  document.getElementById('build').textContent = d.build;
+  MATCHES = d.matches; setStats(d.stats);
+  if(d.has_calibration) syncModeToggle(d.param_mode);
+  else document.getElementById('modeToggle').style.display = 'none';
+  document.getElementById('engElo').classList.toggle('sel', d.engine==='elo');
+  document.getElementById('engPoi').classList.toggle('sel', d.engine==='poisson');
+  renderTimeline();
+}
+
+/* ── Kalibráció + súly-mód ── */
+function syncModeToggle(mode){
+  document.getElementById('modeToggle').style.display = '';
+  document.getElementById('modeDef').classList.toggle('sel', mode==='default');
+  document.getElementById('modeCal').classList.toggle('sel', mode==='calibrated');
+}
+
+async function setEngine(eng){
+  const r = await fetch('/api/engine/'+eng);
+  if(!r.ok) return;
+  TL = null;
+  document.getElementById('detail').innerHTML =
+    '<div class="card"><div class="roundtag">Motor: '+(eng==='poisson'?'POISSON-GÓLMODELL':'ELO')+'</div>'
+    + '<div style="margin-top:10px;font-size:13.5px;line-height:1.6">'
+    + (eng==='poisson'
+        ? 'A gólvárakozásból (λ) számol teljes eredmény-eloszlást — a döntetlen természetesen adódik, és <b>pontos eredményt is jósol</b>.<br><br>Őszinte mérleg: a csoportköri Brier picit jobb, a kieséses szakaszon viszont gyengébb az ELO-nál (78,6% vs 89,3%). Nem ez az alapértelmezett.'
+        : 'Az effektív erők különbségéből ELO-görbével számol győzelmi esélyt. Ez a validáción a legjobb: 71% / Brier 0,373.')
+    + '</div><div class="predbadge" style="margin-top:12px">Futtasd a ▶ Teljes validációt az összehasonlításhoz.</div></div>';
+  loadMatches();
+}
+
+async function setMode(mode){
+  const r = await fetch('/api/params/mode/'+mode);
+  if(!r.ok) return;
+  syncModeToggle(mode);
+  TL = null; // idővonal-grafikon érvénytelen — más motor
+  document.getElementById('detail').innerHTML =
+    '<div class="placeholder">Súly-mód: <b>'+(mode==='calibrated'?'kalibrált':'eredeti')+'</b>.<br><br>Futtasd újra a ▶ Teljes validációt az összehasonlításhoz —<br>a top5-idővonal is újraszámol a következő megnyitáskor.</div>';
+}
+
+const PARAM_HU = {w_fifa:'FIFA-súly', w_star:'sztár-súly', w_depth:'mélység-súly',
+  w_coach:'edző-súly', elo_divisor:'ELO-osztó', draw_base:'döntetlen-alap',
+  mom_goal_diff:'momentum: gólkülönbség', mom_loss:'momentum: vereség',
+  mom_win_streak:'momentum: győzelmi sorozat', mom_clean_sheet:'momentum: tiszta lap',
+  mom_et_penalty:'momentum: hosszabbítás', mom_pen_penalty:'momentum: tizenegyesek',
+  tactic_scale:'taktika-skála', pressure_scale:'nyomás-skála', context_scale:'kontextus-skála'};
+
+async function runCalibration(){
+  const btn = document.getElementById('calibBtn');
+  btn.disabled = true;
+  async function poll(){
+    const r = await fetch('/api/calibrate'); const d = await r.json();
+    if(d.status === 'running'){
+      btn.textContent = '⚖ Kalibrálás… '+(d.total? d.progress+'/'+d.total : '');
+      setTimeout(poll, 900); return;
+    }
+    btn.disabled = false; btn.textContent = '⚖ Kalibráció';
+    if(d.status === 'error'){ alert('Kalibrációs hiba: '+d.error); return; }
+    syncModeToggle(d.mode);
+    renderCalibReport(d.report);
+  }
+  poll();
+}
+
+function evrow(lbl, b, a){
+  const better = a.brier < b.brier;
+  const bci = a.brier_ci ? ' <span style="color:var(--dim);font-size:10px">['+a.brier_ci[0].toFixed(2)+'–'+a.brier_ci[1].toFixed(2)+']</span>' : '';
+  const aci = a.accuracy_ci ? ' <span style="color:var(--dim);font-size:10px">['+a.accuracy_ci[0].toFixed(0)+'–'+a.accuracy_ci[1].toFixed(0)+'%]</span>' : '';
+  return '<tr><td>'+lbl+'</td><td class="mono">'+b.n+'</td>'
+    +'<td class="mono">'+b.brier.toFixed(3)+' → <b class="'+(better?'g':'r')+'">'+a.brier.toFixed(3)+'</b>'+bci+'</td>'
+    +'<td class="mono">'+b.accuracy.toFixed(1)+'% → <b class="'+(a.accuracy>=b.accuracy?'g':'r')+'">'+a.accuracy.toFixed(1)+'%</b>'+aci+'</td></tr>';
+}
+
+function renderCalibReport(rep){
+  showView('matches');
+  let h = '<div class="card"><div class="roundtag">⚖ Kalibrációs jelentés</div>';
+  h += '<div class="verdictbox" style="margin-top:12px">'+esc(rep.honest_verdict)+'</div>';
+  h += '<table class="sumtbl"><tr><th>Halmaz</th><th>Meccs</th><th>Brier (előtte → utána)</th><th>Találat (előtte → utána)</th></tr>';
+  h += evrow('Tanító (csoportkör+R32)', rep.before.train, rep.after.train);
+  h += evrow('<b>Teszt (R16+QF, nem látott)</b>', rep.before.test, rep.after.test);
+  h += evrow('Teljes lánc', rep.before.all, rep.after.all);
+  h += '</table>';
+  h += '<h3 class="sub" style="margin-top:16px">Legnagyobb paraméter-változások</h3>';
+  h += '<table class="sumtbl"><tr><th>Paraméter</th><th>Eredeti</th><th>Kalibrált</th><th>Változás</th></tr>';
+  for(const c of rep.changes.slice(0,8)){
+    h += '<tr><td>'+esc(PARAM_HU[c.param]||c.param)+'</td><td class="mono">'+c.default+'</td><td class="mono">'+c.calibrated+'</td><td class="mono '+(Math.abs(c.change_pct)>50?'y':'')+'">'+(c.change_pct>0?'+':'')+c.change_pct+'%</td></tr>';
+  }
+  h += '</table>';
+  h += '<div class="ananote">A tanulság: a kalibráció kinullázta a momentum-bónuszokat és a taktika/kontextus-szorzókat — ezek zajt vittek a modellbe. A súly-átrendezés a kollineáris komponensek (FIFA/sztár/mélység/edző) között viszont jórészt önkényes: az érzékenység-vizsgálat szerint a Brier-felület ott lapos. A fenti kapcsolóval (Eredeti/Kalibrált) mindkét súlykészlettel végigpörgethető a Teljes validáció.</div>';
+  h += '</div>';
+  document.getElementById('detail').innerHTML = h;
+  document.getElementById('detail').scrollTop = 0;
+}
+
+function renderTimeline(){
+  const nav = document.getElementById('timeline'); nav.innerHTML='';
+  let lastRound = null;
+  for(const m of MATCHES){
+    if(m.round_label !== lastRound){
+      lastRound = m.round_label;
+      const h = document.createElement('div'); h.className='roundhead'; h.textContent=m.round_label;
+      nav.appendChild(h);
+    }
+    const row = document.createElement('div'); row.className='mrow'; row.id='row_'+m.match_id;
+    if(SELECTED===m.match_id) row.classList.add('sel');
+    const dotCls = m.verdict ? m.verdict : (m.played ? '' : 'future');
+    const t = (m.home&&m.away) ? esc(m.home)+' – '+esc(m.away) : '? – ?  <span style="color:var(--dim)">(döntő)</span>';
+    row.innerHTML = '<span class="dot '+dotCls+'"></span><span class="teams">'+t+'</span><span class="date">'+m.date.slice(5)+'</span>';
+    row.onclick = ()=>selectMatch(m.match_id);
+    nav.appendChild(row);
+  }
+}
+
+async function selectMatch(id){
+  SELECTED = id;
+  document.querySelectorAll('.mrow.sel').forEach(e=>e.classList.remove('sel'));
+  const row = document.getElementById('row_'+id); if(row) row.classList.add('sel');
+  const det = document.getElementById('detail');
+  det.innerHTML = '<div class="placeholder">Predikció számítása (as-of, '+esc(id)+')…</div>';
+  const r = await fetch('/api/predict/'+encodeURIComponent(id));
+  if(!r.ok){ det.innerHTML='<div class="placeholder">Hiba: '+r.status+'</div>'; return; }
+  renderDetail(await r.json());
+}
+
+function bar(label, pct, cls){
+  return '<div class="barline '+cls+'"><span class="lbl">'+esc(label)+'</span>'
+    +'<span class="track"><span class="fill" data-w="'+pct+'"></span></span>'
+    +'<span class="pct">'+pct.toFixed(1)+'%</span></div>';
+}
+
+function renderDetail(d){
+  const m = d.match, p = d.prediction;
+  let h = '<div class="card" id="matchcard">';
+  h += '<div class="roundtag">'+esc(d.round_label)+'</div>';
+  h += '<div class="matchtitle">'+(m.home&&m.away ? esc(m.home)+' – '+esc(m.away) : 'Döntő — a párosítás még nyitott')+'</div>';
+  h += '<div class="meta">'+m.date+(m.venue?' · '+esc(m.venue):'')+' · felhasznált előzmény: '+d.asof_matches_used+' meccs · versenyben: '+d.remaining_count+' csapat</div>';
+
+  if(p.chained){
+    h += '<h3 class="sub">Predikciós lánc (valós eredményig tény, onnan modell)</h3><div class="chain">';
+    for(const s of p.chain){
+      const real = s.type==='valós eredmény';
+      h += '<div class="step"><span class="tag '+(real?'real':'pred')+'">'+(real?'TÉNY':'MODELL')+'</span><b>'+esc(s.match)+'</b> — '+esc(s.detail)+'</div>';
+    }
+    h += '</div><h3 class="sub">Kik nyerhetik a döntőt</h3><div class="bars">';
+    p.candidates.forEach((c,i)=>{ h += bar(c.team, c.win_prob, i===0?'fav':''); });
+    h += '</div>';
+  } else {
+    h += '<div class="bars">';
+    const fav = p.predicted_outcome;
+    h += bar(m.home, p.p_home, fav===m.home?'fav':'');
+    if(p.p_draw>0) h += bar('döntetlen', p.p_draw, fav==='döntetlen'?'fav draw':'draw');
+    h += bar(m.away, p.p_away, fav===m.away?'fav':'');
+    h += '</div>';
+  }
+  h += '<div class="predbadge">A modell tippje: <b>'+esc(p.predicted_outcome)+'</b> ('+p.favorite_prob.toFixed(1)+'%)</div>';
+  if(d.score_prediction){
+    const s = d.score_prediction;
+    h += ' <div class="predbadge">Legvalószínűbb eredmény: <b>'+esc(s.likely_score)+'</b> ('+s.likely_score_prob.toFixed(1)+'%) · λ '+s.lambda_a+'–'+s.lambda_b+'</div>';
+  }
+  h += '<br>';
+  h += '<button class="reveal" id="revealBtn" onclick="doReveal(\''+esc(m.match_id)+'\')">'+(m.played?'⚡ Valóság felfedése':'⏳ Még nem játszották le')+'</button>';
+  if(!m.played) h += '<div class="predbadge" style="margin-left:10px">A tipp a valós eredmények végéig tényadatból, onnan láncolt predikcióból készül.</div>';
+  h += '<div class="verdict" id="verdict"></div>';
+  h += '</div>';
+
+  h += '<div class="card top5"><h3 class="sub">Torna-favoritok ebben a pillanatban (közelítő szimuláció)</h3><div class="bars">';
+  d.top5_at_moment.forEach(t=>{ h += bar(t.team, t.win_prob, ''); });
+  h += '</div></div>';
+
+  if(d.breakdowns && d.breakdowns.length){
+    if(d.breakdown_note) h += '<div class="bdnote">'+esc(d.breakdown_note)+'</div>';
+    h += '<div class="bdgrid">';
+    for(const b of d.breakdowns) h += breakdownCard(b);
+    h += '</div>';
+  }
+
+  const det = document.getElementById('detail');
+  det.innerHTML = h;
+  if(!m.played) document.getElementById('revealBtn').disabled = true;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    det.querySelectorAll('.fill').forEach(f=>{ f.style.width = Math.max(1.2, parseFloat(f.dataset.w))+'%'; });
+  }));
+}
+
+const STYLE_HU = {counter:'kontra', possession:'labdabirtoklás', high_press:'magas letámadás', defensive:'védekező'};
+
+function formSparkline(series){
+  const W=300,H=54,P=6, n=series.length;
+  const X=i=>P+i/(n-1)*(W-2*P), Y=v=>H/2 - v/3*(H/2-P);
+  let s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:320px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg">';
+  s+='<line x1="'+P+'" y1="'+(H/2)+'" x2="'+(W-P)+'" y2="'+(H/2)+'" stroke="var(--line)" stroke-dasharray="3 3"/>';
+  let d='';
+  series.forEach((p,i)=>{ d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.residual).toFixed(1); });
+  s+='<path d="'+d+'" fill="none" stroke="var(--accent)" stroke-width="2"/>';
+  series.forEach((p,i)=>{
+    s+='<circle cx="'+X(i)+'" cy="'+Y(p.residual)+'" r="3" fill="'+(p.residual>=0?'var(--green)':'var(--red)')+'"><title>'+esc(p.opp)+': '+(p.residual>=0?'+':'')+p.residual+'</title></circle>';
+  });
+  s+='</svg>';
+  return s;
+}
+
+function mchip(m){
+  const v = m.value;
+  const cls = v>1.001 ? 'up' : (v<0.999 ? 'down' : 'neut');
+  return '<span class="mchip '+cls+(m.asof?' asof':'')+'" title="'+esc(m.label)+'">'
+    + esc(m.label.replace(/ \(.*\)/,''))+' <b>×'+v.toFixed(v>=1.1||v<=0.9?2:3)+'</b></span>';
+}
+
+function breakdownCard(b){
+  let h = '<div class="bdcard">';
+  h += '<div class="bdhead"><span class="tname">'+esc(b.team)+'</span><span class="eff">effektív erő <b>'+b.effective.toFixed(1)+'</b></span></div>';
+  h += '<h3 class="sub">Súlyozott alapkomponensek</h3>';
+  for(const c of b.components){
+    h += '<div class="bdcomp"><span class="cl">'+esc(c.label)+' ('+c.weight+'%)</span>'
+      + '<span class="track"><span class="fill" style="width:'+c.value+'%"></span></span>'
+      + '<span class="cv"><b>'+c.value+'</b> → +'+c.contrib.toFixed(1)+'</span></div>';
+  }
+  h += '<h3 class="sub" style="margin-top:12px">Szorzók (kék keret = as-of számított)</h3>';
+  h += '<div class="mchips">'+b.multipliers.map(mchip).join('')+'</div>';
+  h += '<div class="bdrow">Hír-módosító: <b>'+(b.news_modifier===0?'nincs aktív (0.0)':(b.news_modifier>0?'+':'')+b.news_modifier.toFixed(1))+'</b>'
+    + ' · Taktika: <b>'+esc(STYLE_HU[b.tactic.own]||b.tactic.own)+'</b>'
+    + (b.tactic.vs ? ' vs '+esc(STYLE_HU[b.tactic.vs]||b.tactic.vs)+' → <b>'+(b.tactic.bonus>=0?'+':'')+b.tactic.bonus.toFixed(1)+'</b>' : '')+'</div>';
+  if(b.form && b.form.series && b.form.series.length >= 2){
+    h += '<div class="bdrow" style="margin-top:8px">Fejlődési görbe <span style="font-family:\'DM Mono\',monospace;font-size:10.5px">(ellenfél-erővel korrigált gól-reziduál · szint '+(b.form.level>=0?'+':'')+b.form.level.toFixed(2)+' · trend '+(b.form.trend>=0?'+':'')+b.form.trend.toFixed(2)+'/meccs)</span></div>';
+    h += formSparkline(b.form.series);
+  }
+  if(b.key_players && b.key_players.length){
+    h += '<div class="bdrow">Kulcsjátékosok: <b>'+b.key_players.map(esc).join(', ')+'</b></div>';
+  }
+  const mom = b.multipliers.find(m=>m.label.startsWith('Momentum'));
+  const pre = b.multipliers.find(m=>m.label.startsWith('Nyomás'));
+  h += '<div class="bdmath">alap '+b.weighted_base.toFixed(1)+' → szorzók után '+b.base_after_multipliers.toFixed(1)
+    + ' → ×'+mom.value.toFixed(2)+' (momentum) ×'+pre.value.toFixed(3)+' (nyomás) '
+    + (b.tactic.vs?(b.tactic.bonus>=0?'+':'')+b.tactic.bonus.toFixed(1)+' (taktika) ':'')
+    + '= <b>'+b.effective.toFixed(1)+'</b></div>';
+  h += '</div>';
+  return h;
+}
+
+async function doReveal(id){
+  const btn = document.getElementById('revealBtn');
+  btn.disabled = true; btn.textContent = '…';
+  const r = await fetch('/api/reveal/'+encodeURIComponent(id));
+  const d = await r.json();
+  if(!d.played){ btn.textContent='⏳ Még nem játszották le'; return; }
+  const v = document.getElementById('verdict');
+  const card = document.getElementById('matchcard');
+  card.classList.add('v-'+d.verdict);
+  const titles = {correct:'✔ TALÁLT', wrong:'✘ TÉVEDETT', close:'≈ SZOROS MECCS — nem talált, de nem is volt egyértelmű favorit'};
+  v.className = 'verdict '+d.verdict;
+  v.innerHTML = '<div class="big">'+titles[d.verdict]+'</div>'
+    + 'Valós eredmény: <b>'+esc(d.home)+' '+esc(d.score)+' '+esc(d.away)+'</b>'
+    + (d.actual_outcome==='döntetlen' ? ' — döntetlen' : ' — továbbjutó/győztes: <b>'+esc(d.actual_outcome)+'</b>')
+    + '<div class="mono">Brier: '+d.brier.toFixed(4)+' · forrás: '+esc(d.source)+'</div>';
+  btn.textContent = '⚡ Valóság felfedve';
+  btn.insertAdjacentHTML('afterend',
+    ' <button class="reveal" style="background:var(--panel2);color:var(--text)" onclick="nextMatch(\''+esc(id)+'\')">→ Következő meccs</button>');
+  setStats(d.stats);
+  const dot = document.querySelector('#row_'+CSS.escape(id)+' .dot');
+  if(dot){ dot.className = 'dot '+d.verdict; }
+  const mm = MATCHES.find(x=>x.match_id===id); if(mm) mm.verdict = d.verdict;
+}
+
+async function refreshData(){
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.textContent = '🔄 Frissítés…';
+  const r = await fetch('/api/refresh-data'); const d = await r.json();
+  btn.disabled = false; btn.textContent = '🔄 Eredmény-frissítés';
+  setStats(d.stats); TL = null;
+  document.getElementById('detail').innerHTML =
+    '<div class="card"><div class="roundtag">🔄 Adatfrissítés</div><div style="margin-top:10px;font-size:13.5px;line-height:1.7">'
+    + d.log.map(l=>'• '+esc(l)).join('<br>')+'</div>'
+    + '<div class="predbadge" style="margin-top:12px">Az idővonal és a predikciók a friss adatokkal számolnak — a top5-grafikon a következő megnyitáskor újraszámol.</div></div>';
+  loadMatches();
+}
+
+/* (6) billentyű-navigáció: fel/le a meccslistán */
+document.addEventListener('keydown', e=>{
+  if(e.key!=='ArrowDown' && e.key!=='ArrowUp') return;
+  if(document.getElementById('timeline').style.display==='none') return;
+  e.preventDefault();
+  const i = MATCHES.findIndex(m=>m.match_id===SELECTED);
+  const ni = e.key==='ArrowDown' ? Math.min(MATCHES.length-1, i+1) : Math.max(0, i<0?0:i-1);
+  selectMatch(MATCHES[ni].match_id);
+  const row = document.getElementById('row_'+MATCHES[ni].match_id);
+  if(row) row.scrollIntoView({block:'nearest'});
+});
+
+function nextMatch(id){
+  const i = MATCHES.findIndex(m=>m.match_id===id);
+  if(i>=0 && i<MATCHES.length-1){
+    selectMatch(MATCHES[i+1].match_id);
+    const row = document.getElementById('row_'+MATCHES[i+1].match_id);
+    if(row) row.scrollIntoView({block:'nearest'});
+  }
+}
+
+loadMatches();
+</script>
+</body>
+</html>
