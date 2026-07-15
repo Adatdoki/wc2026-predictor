@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Futásidőben generált fájlok
+predictions_history.json
+top5_timeline.json
+custom_results_wc2026.json
+market_odds.json

@@ -850,10 +850,16 @@ KNOCKOUT_RESULTS = [
      "extra_time": False, "penalties": False, "winner": "Argentina",
      "source": "official"},  # javítva: hivatalos adat ARG 3-1 SUI rendes játékidőben (korábban tévesen SUI 0-3 hosszabbítással)
 
-    # ── SF (Elődöntők, júl. 14-15) - MÉG NEM JÁTSZÓDOTT LE ──
-    # Ezeket a ChatGPT API vagy kézi bevitel fogja feltölteni
-    # {"match_id": "SF_1", "round": "SF", "date": "2026-07-14",
-    #  "home": "France", "away": "Spain", ...},
+    # ── SF (Elődöntők) ──
+    {"match_id": "SF_1", "round": "SF", "date": "2026-07-14",
+     "home": "France", "away": "Spain", "home_goals": 0, "away_goals": 2,
+     "extra_time": False, "penalties": False, "winner": "Spain",
+     "source": "official",
+     # Forrás: FIFA match report, Reuters ("Spain choke life out of France"),
+     # Al Jazeera live (2026-07-14). Gólok: Oyarzabal 22' (11-es), Pedro Porro 58'.
+     # A modell FRANCE-t tippelte 73,7%-ra -> a rendszer TÉVEDETT (piros).
+     "goals": ["Oyarzabal 22' (pen)", "Pedro Porro 58'"]},
+    # ── SF_2 (England-Argentina, júl. 15) - MÉG NEM JÁTSZÓDOTT LE ──
     # {"match_id": "SF_2", "round": "SF", "date": "2026-07-15",
     #  "home": "England", "away": "Argentina", ...},
 

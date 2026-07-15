@@ -37,7 +37,7 @@ from predictor_wc2026 import (
     compute_pressure_factor, compute_form, TACTIC_MATRIX,
 )
 
-KV_BUILD = "WCUI 0.9.0"
+KV_BUILD = "WCUI 0.9.1"
 HISTORY_FILE = "predictions_history.json"
 CUSTOM_RESULTS_FILE = "custom_results_wc2026.json"
 
