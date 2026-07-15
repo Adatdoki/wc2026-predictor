@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WC2026 Predikció · WCUI 0.9.1</title>
+<title>WC2026 Predikció · WCUI 0.9.3</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -234,7 +234,7 @@ table.sumtbl{border-collapse:collapse;width:100%;margin-top:10px;font-size:13px}
 </footer>
 
 <script>
-const KV_BUILD = "WCUI 0.9.1";
+const KV_BUILD = "WCUI 0.9.3";
 console.log("KV_BUILD:", KV_BUILD);
 
 let MATCHES = [], SELECTED = null, TL = null, TLVIS = {};
@@ -673,6 +673,7 @@ function renderDetail(d){
   h += '<div class="roundtag">'+esc(d.round_label)+'</div>';
   h += '<div class="matchtitle">'+(m.home&&m.away ? esc(m.home)+' – '+esc(m.away) : 'Döntő — a párosítás még nyitott')+'</div>';
   h += '<div class="meta">'+m.date+(m.venue?' · '+esc(m.venue):'')+' · felhasznált előzmény: '+d.asof_matches_used+' meccs · versenyben: '+d.remaining_count+' csapat</div>';
+  if(d.bronze_note) h += '<div class="predbadge" style="border-color:var(--yellow);color:var(--yellow);display:block;margin-bottom:10px">🥉 '+esc(d.bronze_note)+'</div>';
 
   if(p.chained){
     h += '<h3 class="sub">Predikciós lánc (valós eredményig tény, onnan modell)</h3><div class="chain">';

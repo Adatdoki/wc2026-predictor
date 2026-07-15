@@ -376,15 +376,21 @@ def score_prediction(team_a, team_b, round_name, results_so_far, gpt_modifiers=N
 
 
 def _effective_strengths(team_a, team_b, round_name, results_so_far, gpt_modifiers):
-    """A két csapat effektív ereje (közös rész mindkét motorhoz)."""
+    """A két csapat effektív ereje (közös rész mindkét motorhoz).
+    Bronzmeccsen (round_name='bronze') NINCS nyomás/momentum/forma — tét
+    nélküli meccs, csak a nyers csapaterő + taktika számít. Ez tudatosan
+    óvatosabb, mert a bronzmeccs a legkevésbé megjósolható meccstípus."""
     str_a = compute_base_strength(team_a, gpt_modifiers)
     str_b = compute_base_strength(team_b, gpt_modifiers)
-    eff_a = (str_a * compute_momentum(team_a, results_so_far)
-             * compute_pressure_factor(team_a, round_name)
-             * compute_form(team_a, results_so_far))
-    eff_b = (str_b * compute_momentum(team_b, results_so_far)
-             * compute_pressure_factor(team_b, round_name)
-             * compute_form(team_b, results_so_far))
+    if round_name == "bronze":
+        eff_a, eff_b = str_a, str_b
+    else:
+        eff_a = (str_a * compute_momentum(team_a, results_so_far)
+                 * compute_pressure_factor(team_a, round_name)
+                 * compute_form(team_a, results_so_far))
+        eff_b = (str_b * compute_momentum(team_b, results_so_far)
+                 * compute_pressure_factor(team_b, round_name)
+                 * compute_form(team_b, results_so_far))
     tac_a = TEAMS.get(team_a, {}).get("tactical_style", "possession")
     tac_b = TEAMS.get(team_b, {}).get("tactical_style", "possession")
     eff_a += TACTIC_MATRIX.get((tac_a, tac_b), 0.0) * PARAMS["tactic_scale"]
@@ -423,27 +429,8 @@ def match_probability(team_a, team_b, round_name, results_so_far, gpt_modifiers=
         return p_a, p_draw, p_b
 
     str_a = compute_base_strength(team_a, gpt_modifiers)
-    str_b = compute_base_strength(team_b, gpt_modifiers)
-
-    mom_a = compute_momentum(team_a, results_so_far)
-    mom_b = compute_momentum(team_b, results_so_far)
-
-    press_a = compute_pressure_factor(team_a, round_name)
-    press_b = compute_pressure_factor(team_b, round_name)
-
-    form_a = compute_form(team_a, results_so_far)
-    form_b = compute_form(team_b, results_so_far)
-
-    eff_a = str_a * mom_a * press_a * form_a
-    eff_b = str_b * mom_b * press_b * form_b
-
-    # Taktikai ütközés
-    tac_a = TEAMS.get(team_a, {}).get("tactical_style", "possession")
-    tac_b = TEAMS.get(team_b, {}).get("tactical_style", "possession")
-    tac_bonus_a = TACTIC_MATRIX.get((tac_a, tac_b), 0.0) * PARAMS["tactic_scale"]
-    tac_bonus_b = TACTIC_MATRIX.get((tac_b, tac_a), 0.0) * PARAMS["tactic_scale"]
-    eff_a += tac_bonus_a
-    eff_b += tac_bonus_b
+    eff_a, eff_b = _effective_strengths(team_a, team_b, round_name,
+                                        results_so_far, gpt_modifiers)
 
     # ELO-szerű valószínűség
     elo_diff = eff_a - eff_b
@@ -459,7 +446,7 @@ def match_probability(team_a, team_b, round_name, results_so_far, gpt_modifiers=
         p_b_adj = p_b * (1.0 - draw_adj)
         return (p_a_adj, draw_adj, p_b_adj)
     else:
-        # Kieséses: nincs döntetlen (hosszabbítás/büntető van)
+        # Kieséses / bronze: nincs döntetlen a kimenetben
         return (p_a, 0.0, p_b)
 
 

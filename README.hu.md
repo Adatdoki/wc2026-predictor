@@ -1,4 +1,6 @@
-# wc2026-predictor_2
+# wc2026-predictor
+
+FIFA VB-2026 predikciós rendszer — a modell 68,6%-ot ér, egy egysoros naiv szabály 71,6%-ot. A repo arról szól, miért nem ez a jó kérdés.
 
 *In English: [README.md](README.md)*
 

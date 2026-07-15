@@ -15,27 +15,29 @@ python3 server_wc2026.py   # webfelület: http://localhost:8026
 
 ---
 
-## 🔴 UTÓÉLET — az élő tipp elbukott (2026-07-14)
+## 🔴 UTÓÉLET — mindkét elődöntő lezajlott (2026-07-14/15)
 
 A LinkedIn-poszt előtt a rendszer nyilvánosan kiadta a France–Spain elődöntőre adott
 tippjét: **France 73,7%.** Utólag nem szépíthető.
 
-**Az eredmény: France 0–2 Spain** (Oyarzabal 22' tizenegyes, Pedro Porro 58').
-A modell **tévedett** — határozott favoritot tippelt, aki kikapott. A felületen ez egy
-piros pötty, a meccs Brier-pontszáma **1,09** (a lehető legrosszabb).
+**SF_1: France 0–2 Spain** (Oyarzabal 22' 11-es, Pedro Porro 58') — a modell
+**TÉVEDETT.** Határozott favoritot tippelt, aki kikapott. Piros pötty, Brier 1,09.
 
-Ez a projekt legőszintébb pillanata, és a hatása mérhető:
+**SF_2: England 1–2 Argentina** (Gordon 55', Enzo 85', Lautaro 90+2') — a modell
+Argentínát tippelte 61%-ra, és **TALÁLT.** Zöld pötty.
 
-- A teljes validáció most **101 meccs.** A modell találati aránya 71% → **70,3%**,
-  a Brier Skill Score +0,334 → **+0,321**.
-- A teszthalmaz 12 → **13 kieséses meccs** — és itt a lényeg: **a kalibráció ezen a
-  bővebb teszthalmazon már NEM javít**, a rendszer maga jelzi ki a túlillesztést.
-  Egyetlen rosszul eltalált, nagy magabiztosságú tipp elég volt, hogy megbillentse a
-  képet. Pontosan ezért kell több adat, mint 100 meccs.
-- A döntő láncolt predikciója frissült: France–Spain most **valós eredmény**, a döntőt
-  **Spain (89,7%)** vezeti az England–Argentina győztese ellen.
+**Elődöntő-mérleg: 1 piros, 1 zöld.** És a hatás mérhető:
 
-Forrás: FIFA match report, Reuters, Al Jazeera (2026-07-14).
+- A teljes validáció most **102 meccs.** A modell találati aránya 71% → **68,6%**,
+  a Brier Skill Score +0,334 → **+0,302**. A naiv FIFA-szabály 71,6% — tehát a rés
+  a modell kárára **nőtt**.
+- A teszthalmaz 12 → **14 kieséses meccs** — és a kalibráció ezen a bővebb halmazon
+  **továbbra sem javít**, a rendszer maga jelzi ki a túlillesztést. Két friss, valós
+  kieséses eredmény megerősítette: 100 meccs kevés.
+- **A döntő párosítása eldőlt: Spain vs Argentina (2026-07-19).** Mindkét ág TÉNY, a
+  modell tippje **Spain 79% – Argentina 21%.** Ez a következő élő teszt.
+
+Forrás: FIFA, Reuters, Al Jazeera (SF_1); AP, The Guardian, People (SF_2).
 
 ---
 

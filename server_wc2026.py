@@ -31,13 +31,14 @@ import uvicorn
 
 from data_wc2026 import (
     TEAMS, GROUP_STAGE_RESULTS, KNOCKOUT_RESULTS, SEMIFINAL_MATCHUPS,
+    BRONZE_MATCH,
 )
 from predictor_wc2026 import (
     match_probability, compute_base_strength, compute_momentum,
     compute_pressure_factor, compute_form, TACTIC_MATRIX,
 )
 
-KV_BUILD = "WCUI 0.9.1"
+KV_BUILD = "WCUI 0.9.3"
 HISTORY_FILE = "predictions_history.json"
 CUSTOM_RESULTS_FILE = "custom_results_wc2026.json"
 
@@ -45,8 +46,8 @@ KO_ROUNDS = ["R32", "R16", "QF", "SF", "FINAL"]
 ROUND_LABELS = {1: "Csoportkör – 1. forduló", 2: "Csoportkör – 2. forduló",
                 3: "Csoportkör – 3. forduló", "R32": "Nyolcaddöntők (R32)",
                 "R16": "Tizenhatoddöntők (R16)", "QF": "Negyeddöntők",
-                "SF": "Elődöntők", "FINAL": "Döntő"}
-ROUND_SORT = {1: 0, 2: 1, 3: 2, "R32": 3, "R16": 4, "QF": 5, "SF": 6, "FINAL": 7}
+                "SF": "Elődöntők", "3RD": "Bronzmérkőzés", "FINAL": "Döntő"}
+ROUND_SORT = {1: 0, 2: 1, 3: 2, "R32": 3, "R16": 4, "QF": 5, "SF": 6, "3RD": 6.5, "FINAL": 7}
 
 app = FastAPI(title="WC2026 Predikció")
 
@@ -101,6 +102,12 @@ def build_timeline():
             items.append({"match_id": sf_id, "date": info["date"], "round": "SF",
                           "home": info["home"], "away": info["away"],
                           "played": False, "venue": info.get("venue")})
+    for b_id, info in BRONZE_MATCH.items():
+        if b_id not in res:
+            items.append({"match_id": b_id, "date": info["date"], "round": "3RD",
+                          "home": info["home"], "away": info["away"],
+                          "played": False, "venue": info.get("venue"),
+                          "bronze": True})
     if "FINAL" not in res:
         items.append({"match_id": "FINAL", "date": "2026-07-19", "round": "FINAL",
                       "home": None, "away": None, "played": False,
@@ -125,7 +132,11 @@ def asof_results(match_id):
 
 
 def round_name_for(rnd):
-    return "group" if rnd in (1, 2, 3) else rnd
+    if rnd in (1, 2, 3):
+        return "group"
+    if rnd == "3RD":
+        return "bronze"   # tét nélküli mód a motorban
+    return rnd
 
 
 def load_news_modifiers():
@@ -424,6 +435,11 @@ def make_prediction(match_id):
         "remaining_count": len(remaining),
         "breakdowns": breakdowns,
         "breakdown_note": bd_note,
+        "bronze_note": ("Bronzmérkőzés: alacsony tét, két csalódott csapat. "
+                        "A modell tudatosan óvatosabb — nyomás, momentum és forma "
+                        "nélkül, csak nyers csapaterő + ELO. A bronzmeccs a legkevésbé "
+                        "megjósolható meccstípus, és a kalibrációból is kihagytuk."
+                        if m.get("bronze") else None),
     }
     _predict_cache[match_id] = payload
     log_prediction(match_id, m, pred)

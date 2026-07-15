@@ -1,6 +1,6 @@
 {
   "engine": "elo",
-  "calibrated_at": "2026-07-15T19:26:27.444496+00:00",
+  "calibrated_at": "2026-07-15T21:20:11.975176+00:00",
   "method": "koordinátánkénti ereszkedés, 3 véletlen újraindítás + alapérték-indítás",
   "train_set": "csoportkör + R32 (az optimalizáló ezt látta)",
   "test_set": "R16 + negyeddöntők (az optimalizáló SOHA nem látta)",
@@ -11,22 +11,22 @@
       "accuracy": 68.2
     },
     "test": {
-      "n": 13,
-      "brier": 0.3692,
-      "accuracy": 61.5,
+      "n": 14,
+      "brier": 0.3572,
+      "accuracy": 64.3,
       "brier_ci": [
-        0.1502,
-        0.6345
+        0.147,
+        0.6104
       ],
       "accuracy_ci": [
-        30.8,
-        84.6
+        35.7,
+        85.7
       ]
     },
     "all": {
-      "n": 101,
-      "brier": 0.4097,
-      "accuracy": 67.3
+      "n": 102,
+      "brier": 0.4076,
+      "accuracy": 67.6
     }
   },
   "after": {
@@ -36,22 +36,22 @@
       "accuracy": 69.3
     },
     "test": {
-      "n": 13,
-      "brier": 0.4161,
-      "accuracy": 61.5,
+      "n": 14,
+      "brier": 0.4079,
+      "accuracy": 64.3,
       "brier_ci": [
-        0.1579,
-        0.7155
+        0.1637,
+        0.682
       ],
       "accuracy_ci": [
-        30.8,
-        84.6
+        35.7,
+        85.7
       ]
     },
     "all": {
-      "n": 101,
-      "brier": 0.3919,
-      "accuracy": 68.3
+      "n": 102,
+      "brier": 0.391,
+      "accuracy": 68.6
     }
   },
   "test_improved": false,

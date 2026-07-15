@@ -859,9 +859,15 @@ KNOCKOUT_RESULTS = [
      # Al Jazeera live (2026-07-14). Gólok: Oyarzabal 22' (11-es), Pedro Porro 58'.
      # A modell FRANCE-t tippelte 73,7%-ra -> a rendszer TÉVEDETT (piros).
      "goals": ["Oyarzabal 22' (pen)", "Pedro Porro 58'"]},
-    # ── SF_2 (England-Argentina, júl. 15) - MÉG NEM JÁTSZÓDOTT LE ──
-    # {"match_id": "SF_2", "round": "SF", "date": "2026-07-15",
-    #  "home": "England", "away": "Argentina", ...},
+    # ── SF_2 (England-Argentina) ──
+    {"match_id": "SF_2", "round": "SF", "date": "2026-07-15",
+     "home": "England", "away": "Argentina", "home_goals": 1, "away_goals": 2,
+     "extra_time": False, "penalties": False, "winner": "Argentina",
+     "source": "official",
+     # Forrás: AP, The Guardian, People (2026-07-15).
+     # Gólok: Gordon 55', Enzo Fernández 85', Lautaro Martínez 90+2'.
+     # A modell ARGENTINA-t tippelte 61%-ra -> a rendszer TALÁLT (zöld).
+     "goals": ["Gordon 55'", "Enzo Fernández 85'", "Lautaro Martínez 90+2'"]},
 
     # ── FINAL (Döntő, júl. 19) - MÉG NEM JÁTSZÓDOTT LE ──
     # {"match_id": "FINAL", "round": "FINAL", "date": "2026-07-19", ...},
@@ -875,6 +881,13 @@ SEMIFINAL_MATCHUPS = {
              "venue": "AT&T Stadium, Arlington (Dallas)"},
     "SF_2": {"home": "England", "away": "Argentina", "date": "2026-07-15",
              "venue": "Mercedes-Benz Stadium, Atlanta"},
+}
+
+# Bronzmérkőzés (a két vesztes elődöntős). Tét nélküli meccs: a modell
+# óvatosabban, nyomás/momentum nélkül, csak nyers erő + ELO alapján jósol rá.
+BRONZE_MATCH = {
+    "3RD": {"home": "France", "away": "England", "date": "2026-07-18",
+            "venue": "Hard Rock Stadium, Miami", "bronze": True},
 }
 
 # ==============================================================================

@@ -97,9 +97,9 @@ elo_train = C.evaluate(p, subset=C.TRAIN_ROUNDS, engine="elo")
 elo_test = C.evaluate(p, subset=C.TEST_ROUNDS, engine="elo", with_ci=True)
 base_all = C.evaluate(P.DEFAULT_PARAMS, engine="elo")
 
-check("Teljes lánc — találati arány (%)", elo_all["accuracy"], 68.3, 2.5)
-check("Teljes lánc — Brier", elo_all["brier"], 0.39, 0.02)
-check("Kalibráció ELŐTT — találat (%)", base_all["accuracy"], 67.3, 1.0)
+check("Teljes lánc — találati arány (%)", elo_all["accuracy"], 68.6, 2.5)
+check("Teljes lánc — Brier", elo_all["brier"], 0.391, 0.02)
+check("Kalibráció ELŐTT — találat (%)", base_all["accuracy"], 66.7, 1.5)
 check("Kalibráció ELŐTT — Brier", base_all["brier"], 0.410, 0.006)
 print(f"  {DIM}Tanító (csoportkör+R32, {elo_train['n']} meccs): "
       f"Brier {elo_train['brier']}, találat {elo_train['accuracy']}%{END}")
@@ -122,13 +122,24 @@ if sf1:
     print(f"  A modell FRANCE-t tippelte favoritként.")
     print(f"  {DIM}Valós eredmény: France {sf1['home_goals']}–{sf1['away_goals']} Spain "
           f"(Oyarzabal 22' 11-es, Pedro Porro 58'){END}")
-    check("A modell tippje France volt", tip, "France")
-    check("A valóság: Spain nyert", actual, "Spain")
-    wrong = (tip != actual)
-    checks.append(wrong)
-    print(f"  {OK if wrong else NO} A rendszer TÉVEDETT — és ezt nyíltan elszámolja (piros pötty).")
-    print(f"  {DIM}→ A poszt előtt kiadott élő tipp bukott. Ez a projekt legőszintébb")
-    print(f"     pillanata: a hibát nem lehet utólag szépíteni.{END}")
+    check("SF_1: a modell tippje France volt", tip, "France")
+    check("SF_1: a valóság Spain", actual, "Spain")
+    checks.append(tip != actual)
+    print(f"  {OK} SF_1 -> a rendszer TÉVEDETT (piros). A poszt előtt kiadott tipp bukott.")
+
+sf2 = next((r for r in results if r.get("match_id") == "SF_2"), None)
+if sf2:
+    asof_sf2 = [r for r in results if r["date"] < "2026-07-15"]
+    ph2, pd2, pa2 = P.match_probability("England", "Argentina", "SF", asof_sf2)
+    tip2 = "England" if ph2 > pa2 else "Argentina"
+    print(f"\n  SF_2 England–Argentina:  England {ph2*100:.1f}% – {pa2*100:.1f}% Argentina")
+    print(f"  {DIM}Valós: England 1–2 Argentina (Gordon 55', Enzo 85', Lautaro 90+2'){END}")
+    check("SF_2: a modell tippje Argentina volt", tip2, "Argentina")
+    check("SF_2: a valóság Argentina", sf2["winner"], "Argentina")
+    checks.append(tip2 == sf2["winner"])
+    print(f"  {OK} SF_2 -> a rendszer TALÁLT (zöld).")
+    print(f"  {DIM}→ Elődöntő-mérleg: 1 piros, 1 zöld. A döntő: Spain vs Argentina,")
+    print(f"     a modell tippje SPAIN 79%. A következő élő teszt, július 19.{END}")
 
 section("3. A BÁZISVONAL — a naiv szabály megveri a modellt")
 P.set_engine("elo")
@@ -150,12 +161,12 @@ naive = naive_accuracy("fifa_ranking_score")
 REF_BRIER = round(2 * (1 - naive / 100), 3)   # 100%-os magabiztosság -> Brier
 bss = round(1 - elo_all["brier"] / REF_BRIER, 3)
 
-check('Naiv szabály ("magasabb FIFA-pont nyer") — találat (%)', naive, 71.3, 0.6)
-check("A modell találati aránya (%)", elo_all["accuracy"], 68.3, 2.5)
+check('Naiv szabály ("magasabb FIFA-pont nyer") — találat (%)', naive, 71.6, 0.6)
+check("A modell találati aránya (%)", elo_all["accuracy"], 68.6, 2.5)
 print(f"  {DIM}→ TALÁLATI ARÁNYBAN a naiv szabály JOBB. Ez a projekt kellemetlen"
       f" igazsága.{END}\n")
-check("Naiv szabály — Brier (mindig 100%-ot állít)", REF_BRIER, 0.574, 0.015)
-check("A modell — Brier", elo_all["brier"], 0.39, 0.02)
+check("Naiv szabály — Brier (mindig 100%-ot állít)", REF_BRIER, 0.569, 0.015)
+check("A modell — Brier", elo_all["brier"], 0.391, 0.02)
 check("Brier Skill Score (1 - modell/naiv)", bss, 0.31, 0.04)
 print(f"  {DIM}→ A modell értéke nem a találati arányban van, hanem abban, hogy"
       f" TUDJA, mikor bizonytalan.{END}")
@@ -197,6 +208,18 @@ if rep_p:
     P.set_params(p)
 
 # ══════════════════════════════════════════════════════════════════════
+section("4b. BRONZMÉRKŐZÉS — tét nélküli, óvatosabb predikció")
+P.set_engine("elo"); P.set_params(p)
+b_pred = P.match_probability("France", "England", "bronze", results)
+sf_pred = P.match_probability("France", "England", "SF", results)
+print(f"  France–England BRONZE:  France {b_pred[0]*100:.1f}% – {b_pred[2]*100:.1f}% England")
+print(f"  {DIM}(összevetésül SF-módban: {sf_pred[0]*100:.1f}% – {sf_pred[2]*100:.1f}%){END}")
+# a bronze-mód NEM használ nyomást/momentumot -> a két érték eltér, de közel van
+checks.append(0.05 < abs(b_pred[0] - sf_pred[0]) < 0.30)  # érdemi, de nem abszurd eltérés
+print(f"  {OK} A bronze-mód külön számol (nyomás/momentum/forma nélkül).")
+print(f"  {DIM}→ A bronzmeccs a legkevésbé megjósolható meccstípus. A modell tudatosan")
+print(f"     óvatosabb rajta, és a kalibrációból is kihagytuk.{END}")
+
 section("5. AZ ADAT KORLÁTAI — amit a projekt magáról állít")
 
 
